@@ -40,6 +40,9 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("--ignore", action="append", default=[])
     result.add_argument("--json", type=Path, dest="json_output")
     result.add_argument("--markdown", type=Path, dest="markdown_output")
+    result.add_argument(
+        "--redact-values", action="store_true", help="Omit values; keys and paths remain visible."
+    )
     return result
 
 
@@ -47,8 +50,10 @@ def main(argv: list[str] | None = None) -> int:
     """Run the command."""
     args = parser().parse_args(argv)
     try:
-        result = compare(args.before, args.after, ignore=set(args.ignore))
-    except (OSError, ValueError, json.JSONDecodeError, configparser.Error) as error:
+        result = compare(
+            args.before, args.after, ignore=set(args.ignore), redact_values=args.redact_values
+        )
+    except (OSError, ValueError, json.JSONDecodeError, configparser.Error, UnicodeError) as error:
         parser().error(str(error))
     rendered = markdown(result)
     if args.json_output:

@@ -25,8 +25,14 @@ pytest
 python -m build
 ```
 
-Version 1.0.0 is feature complete for the supported text formats. Contributions follow [CONTRIBUTING.md](CONTRIBUTING.md), security reports follow [SECURITY.md](SECURITY.md), and the project uses the MIT License.
+The supported text formats remain bounded to JSON, INI/CFG, and key-value snapshots. Contributions follow [CONTRIBUTING.md](CONTRIBUTING.md), security reports follow [SECURITY.md](SECURITY.md), and the project uses the MIT License.
 
 ## More open-source projects
 
 This project is part of the [Logan Pendragon Forge open-source collection](https://www.loganpendragonforge.com/open-source/). Browse the catalog for other released tools, source repositories, live demos, and downloads.
+
+## Optional value-redacted reports
+
+Use `game-settings-compare before.json after.json --redact-values --json changes.json --markdown changes.md` to retain setting keys, value types, added/removed/changed classifications, and counts while omitting values. JSON primitive types appear as `[redacted:string]`, `[redacted:number]`, `[redacted:boolean]`, or `[redacted:null]`; INI/CFG and key-value entries are strings. Comparison happens before redaction, so two different secrets still count as changed. Invalid or unreadable redacted inputs produce a generic error without input contents.
+
+Redaction is opt-in; default output continues to include values. **Setting names and input/output paths remain visible** and can themselves contain sensitive information. Redaction does not anonymize names or paths. No files are uploaded or modified.

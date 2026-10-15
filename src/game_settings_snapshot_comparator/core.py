@@ -98,9 +98,28 @@ def load_snapshot(path: Path) -> dict[str, str]:
     return parse_key_values(text)
 
 
-def compare(before_path: Path, after_path: Path, *, ignore: set[str] | None = None) -> Comparison:
+def compare(
+    before_path: Path,
+    after_path: Path,
+    *,
+    ignore: set[str] | None = None,
+    redact_values: bool = False,
+) -> Comparison:
     """Compare two snapshots, optionally excluding exact dotted keys."""
     excluded = {key.casefold() for key in (ignore or set())}
+    try:
+        return _compare(before_path, after_path, excluded, redact_values)
+    except (OSError, UnicodeError, ValueError, configparser.Error):
+        if redact_values:
+            raise ValueError(
+                "Cannot compare snapshots: input is unreadable or malformed."
+            ) from None
+        raise
+
+
+def _compare(
+    before_path: Path, after_path: Path, excluded: set[str], redact_values: bool
+) -> Comparison:
     before = {
         key: value
         for key, value in load_snapshot(before_path).items()
@@ -118,4 +137,25 @@ def compare(before_path: Path, after_path: Path, *, ignore: set[str] | None = No
         Change(key, before[key], after[key]) for key in sorted(shared) if before[key] != after[key]
     )
     unchanged = sum(before[key] == after[key] for key in shared)
+
+    if redact_values:
+
+        def marker(value: str, path: Path) -> str:
+            kind = "string"
+            if path.suffix.casefold() == ".json":
+                parsed = json.loads(value)
+                if parsed is None:
+                    kind = "null"
+                elif isinstance(parsed, bool):
+                    kind = "boolean"
+                elif isinstance(parsed, (int, float)):
+                    kind = "number"
+            return f"[redacted:{kind}]"
+
+        added = tuple((key, marker(value, after_path)) for key, value in added)
+        removed = tuple((key, marker(value, before_path)) for key, value in removed)
+        changed = tuple(
+            Change(item.key, marker(item.before, before_path), marker(item.after, after_path))
+            for item in changed
+        )
     return Comparison(str(before_path), str(after_path), added, removed, changed, unchanged)
