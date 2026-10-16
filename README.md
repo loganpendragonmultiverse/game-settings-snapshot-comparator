@@ -5,7 +5,7 @@ Game Settings Snapshot Comparator explains what changed between two local game c
 ## Three-minute use
 
 ```sh
-python -m pip install "game-settings-snapshot-comparator @ https://github.com/loganpendragonmultiverse/game-settings-snapshot-comparator/releases/download/v1.0.0/game_settings_snapshot_comparator-1.0.0-py3-none-any.whl"
+python -m pip install "game-settings-snapshot-comparator @ https://github.com/loganpendragonmultiverse/game-settings-snapshot-comparator/releases/download/v1.1.1/game_settings_snapshot_comparator-1.1.1-py3-none-any.whl"
 game-settings-compare before.ini after.ini --markdown changes.md --json changes.json
 ```
 
