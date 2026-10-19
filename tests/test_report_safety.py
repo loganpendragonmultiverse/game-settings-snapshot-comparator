@@ -115,3 +115,20 @@ def test_stdout_fallback_and_partial_writes(monkeypatch: pytest.MonkeyPatch) -> 
     monkeypatch.setattr(os, "write", lambda fd, pending: 0)
     with pytest.raises(OSError, match="no progress"):
         output.write_stdout("x")
+
+
+@pytest.mark.parametrize("nested", [False, True])
+def test_symlink_loop_is_an_actionable_cli_error(tmp_path: Path, nested: bool) -> None:
+    paths = inputs(tmp_path)
+    before = [path.read_bytes() for path in paths]
+    loop = tmp_path / "loop"
+    try:
+        loop.symlink_to(loop.name, target_is_directory=nested)
+    except OSError:
+        pytest.skip("symlink creation unavailable on this platform")
+    target = loop / "report.json" if nested else loop
+    with pytest.raises(SystemExit) as exc:
+        invoke(paths, "--json", str(target))
+    assert exc.value.code == 2
+    assert [path.read_bytes() for path in paths] == before
+    assert loop.is_symlink()

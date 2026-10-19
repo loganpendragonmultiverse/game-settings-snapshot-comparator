@@ -14,12 +14,17 @@ def write_reports(sources: list[Path], reports: list[tuple[Path, str]]) -> None:
     seen: set[Path] = set()
     source_paths = {source.resolve() for source in sources}
     for path, _ in reports:
-        resolved = path.resolve()
+        if path.is_symlink():
+            raise ValueError(f"report destination must not be a symlink: {path}")
+        try:
+            resolved = path.resolve()
+        except RuntimeError as error:
+            raise ValueError(f"cannot resolve report destination: {path}") from error
         if resolved in source_paths:
             raise ValueError("report destination must differ from input files")
         if resolved in seen:
             raise ValueError("report destinations must be distinct")
-        if path.exists() or path.is_symlink():
+        if path.exists():
             raise FileExistsError(f"report already exists: {path}")
         seen.add(resolved)
     for path, text in reports:

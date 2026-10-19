@@ -1,5 +1,11 @@
 # Game Settings Snapshot Comparator
 
+> ⭐ **Gold Star Project**
+> I consider this project complete. Fixes, maintenance and good new ideas are still welcome.
+> [About Gold Stars](https://www.loganpendragonforge.com/open-source/?gold=1)
+>
+> Compare local game settings snapshots and review typed changes, with optional value redaction.
+
 Game Settings Snapshot Comparator explains what changed between two local game configuration snapshots. It supports JSON, sectioned INI/CFG, and simple `key=value` text while keeping value types visible and leaving both files untouched.
 
 ## Three-minute use
@@ -39,7 +45,7 @@ Use `game-settings-compare before.json after.json --redact-values --json changes
 
 Redaction is opt-in; default output continues to include values. **Setting names and input/output paths remain visible** and can themselves contain sensitive information. Redaction does not anonymize names or paths. No files are uploaded or modified.
 
-## Changes prepared for 1.1.2 — 2026-10-19
+## Version 1.1.2 — 2026-10-19
 
 Report destinations must be new, distinct files, separate from every input. Existing files and symlink destinations are refused. Ordinary read, report-write and stdout failures return exit code 2. Inputs and existing reports are preserved. A later write failure can leave a partial new report or an already completed first report; inspect these paths and choose new names when retrying. Reports are not a multi-file or power-loss transaction.
 
