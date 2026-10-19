@@ -38,21 +38,46 @@ def value_text(value: object) -> str:
     return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
 
 
+PathSignature = tuple[str | int, ...]
+
+
+def _flatten_json(
+    value: object, prefix: str = ""
+) -> tuple[dict[str, str], dict[str, PathSignature]]:
+    result: dict[str, str] = {}
+    paths: dict[str, PathSignature] = {}
+
+    def visit(item: object, key: str, parts: PathSignature) -> None:
+        if isinstance(item, dict) and item:
+            for name in sorted(item):
+                child = f"{key}.{name}" if key else str(name)
+                visit(item[name], child, (*parts, name))
+        elif isinstance(item, list) and item:
+            for index, child_item in enumerate(item):
+                visit(child_item, f"{key}[{index}]", (*parts, index))
+        else:
+            rendered = key or "$"
+            if rendered in paths:
+                raise ValueError(f"ambiguous flattened JSON path: {rendered}")
+            result[rendered] = value_text(item)
+            paths[rendered] = parts
+
+    visit(value, prefix, ())
+    return result, paths
+
+
 def flatten_json(value: object, prefix: str = "") -> dict[str, str]:
-    """Flatten nested JSON objects and arrays into dotted keys."""
-    if isinstance(value, dict):
-        result: dict[str, str] = {}
-        for key in sorted(value):
-            child = f"{prefix}.{key}" if prefix else str(key)
-            result.update(flatten_json(value[key], child))
-        return result
-    if isinstance(value, list):
-        result = {}
-        for index, item in enumerate(value):
-            child = f"{prefix}[{index}]"
-            result.update(flatten_json(item, child))
-        return result
-    return {prefix or "$": value_text(value)}
+    """Flatten JSON, retaining empty containers and refusing path collisions."""
+    return _flatten_json(value, prefix)[0]
+
+
+def _unique_object(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    result: dict[str, object] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"duplicate JSON key: {key}")
+        result[key] = value
+    return result
 
 
 def parse_ini(text: str) -> dict[str, str]:
@@ -85,17 +110,21 @@ def parse_key_values(text: str) -> dict[str, str]:
     return result
 
 
-def load_snapshot(path: Path) -> dict[str, str]:
-    """Load a JSON, INI, or simple key=value snapshot."""
+def _load_snapshot(path: Path) -> tuple[dict[str, str], dict[str, PathSignature]]:
     text = path.read_text(encoding="utf-8-sig")
     suffix = path.suffix.casefold()
     if suffix == ".json":
-        return flatten_json(json.loads(text))
+        return _flatten_json(json.loads(text, object_pairs_hook=_unique_object))
     if suffix in {".ini", ".cfg"} and any(
         line.lstrip().startswith("[") for line in text.splitlines()
     ):
-        return parse_ini(text)
-    return parse_key_values(text)
+        return parse_ini(text), {}
+    return parse_key_values(text), {}
+
+
+def load_snapshot(path: Path) -> dict[str, str]:
+    """Load a JSON, INI, or simple key=value snapshot."""
+    return _load_snapshot(path)[0]
 
 
 def compare(
@@ -120,16 +149,13 @@ def compare(
 def _compare(
     before_path: Path, after_path: Path, excluded: set[str], redact_values: bool
 ) -> Comparison:
-    before = {
-        key: value
-        for key, value in load_snapshot(before_path).items()
-        if key.casefold() not in excluded
-    }
-    after = {
-        key: value
-        for key, value in load_snapshot(after_path).items()
-        if key.casefold() not in excluded
-    }
+    before_values, before_paths = _load_snapshot(before_path)
+    after_values, after_paths = _load_snapshot(after_path)
+    before = {key: value for key, value in before_values.items() if key.casefold() not in excluded}
+    after = {key: value for key, value in after_values.items() if key.casefold() not in excluded}
+    for key in before.keys() & after.keys() & before_paths.keys() & after_paths.keys():
+        if before_paths[key] != after_paths[key]:
+            raise ValueError(f"ambiguous flattened JSON path across snapshots: {key}")
     added = tuple((key, after[key]) for key in sorted(after.keys() - before.keys()))
     removed = tuple((key, before[key]) for key in sorted(before.keys() - after.keys()))
     shared = before.keys() & after.keys()
@@ -150,6 +176,10 @@ def _compare(
                     kind = "boolean"
                 elif isinstance(parsed, (int, float)):
                     kind = "number"
+                elif isinstance(parsed, list):
+                    kind = "array"
+                elif isinstance(parsed, dict):
+                    kind = "object"
             return f"[redacted:{kind}]"
 
         added = tuple((key, marker(value, after_path)) for key, value in added)

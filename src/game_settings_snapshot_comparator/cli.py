@@ -8,6 +8,7 @@ import json
 from pathlib import Path
 
 from game_settings_snapshot_comparator.core import Comparison, compare
+from game_settings_snapshot_comparator.output import code_text, write_reports, write_stdout
 
 
 def markdown(result: Comparison) -> str:
@@ -25,10 +26,13 @@ def markdown(result: Comparison) -> str:
         "| Setting | Before | After |",
         "| --- | --- | --- |",
     ]
-    lines.extend(f"| `{item.key}` | `{item.before}` | `{item.after}` |" for item in result.changed)
+    lines.extend(
+        f"| {code_text(item.key)} | {code_text(item.before)} | {code_text(item.after)} |"
+        for item in result.changed
+    )
     for heading, entries in (("Added", result.added), ("Removed", result.removed)):
         lines.extend(["", f"## {heading}", ""])
-        lines.extend(f"- `{key}` = `{value}`" for key, value in entries)
+        lines.extend(f"- {code_text(key)} = {code_text(value)}" for key, value in entries)
     return "\n".join(lines) + "\n"
 
 
@@ -53,12 +57,14 @@ def main(argv: list[str] | None = None) -> int:
         result = compare(
             args.before, args.after, ignore=set(args.ignore), redact_values=args.redact_values
         )
-    except (OSError, ValueError, json.JSONDecodeError, configparser.Error, UnicodeError) as error:
+        rendered = markdown(result)
+        reports = []
+        if args.json_output:
+            reports.append((args.json_output, json.dumps(result.to_dict(), indent=2) + "\n"))
+        if args.markdown_output:
+            reports.append((args.markdown_output, rendered))
+        write_reports([args.before, args.after], reports)
+        write_stdout(rendered)
+    except (OSError, ValueError, configparser.Error, UnicodeError) as error:
         parser().error(str(error))
-    rendered = markdown(result)
-    if args.json_output:
-        args.json_output.write_text(json.dumps(result.to_dict(), indent=2) + "\n", encoding="utf-8")
-    if args.markdown_output:
-        args.markdown_output.write_text(rendered, encoding="utf-8")
-    print(rendered, end="")
     return 1 if result.added or result.removed or result.changed else 0
