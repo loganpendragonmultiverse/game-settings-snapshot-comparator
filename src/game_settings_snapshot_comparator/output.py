@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import html
 import io
 import os
 import sys
@@ -40,3 +41,16 @@ def write_stdout(text: str) -> None:
         if written <= 0:
             raise OSError("stdout write made no progress")
         pending = pending[written:]
+
+
+def literal_text(value: str) -> str:
+    """Keep authored text inside its Markdown line, cell or heading."""
+    special = "\\`|*_[]!#~\n\r"
+    return "".join(f"&#{ord(char)};" if char in special else html.escape(char) for char in value)
+
+
+def code_text(value: str) -> str:
+    """Preserve ordinary code styling and escape structural characters."""
+    if any(char in "\x60|\n\r" for char in value):
+        return literal_text(value)
+    return f"`{value}`"

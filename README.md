@@ -46,3 +46,5 @@ Report destinations must be new, distinct files, separate from every input. Exis
 JSON paths retain their existing dotted/indexed display. Literal keys remain supported when unambiguous; a duplicate flattened path, duplicate JSON key, or shared displayed path with different JSON structure is rejected rather than hiding a change. Exact ignored keys are excluded from cross-snapshot path checks. Empty objects and arrays remain visible and use object and array redaction markers when values are redacted. Keys and paths remain visible.
 
 Supported scope: Compare two local JSON, INI/CFG or key-value snapshots, with typed differences and optional value redaction. No external data is fetched and no source file is rewritten.
+
+Authored names, values and titles are escaped in Markdown reports so pipes, backticks, line breaks and HTML text remain report content. JSON values are unchanged.

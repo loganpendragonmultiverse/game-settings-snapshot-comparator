@@ -8,7 +8,7 @@ import json
 from pathlib import Path
 
 from game_settings_snapshot_comparator.core import Comparison, compare
-from game_settings_snapshot_comparator.output import write_reports, write_stdout
+from game_settings_snapshot_comparator.output import code_text, write_reports, write_stdout
 
 
 def markdown(result: Comparison) -> str:
@@ -26,10 +26,13 @@ def markdown(result: Comparison) -> str:
         "| Setting | Before | After |",
         "| --- | --- | --- |",
     ]
-    lines.extend(f"| `{item.key}` | `{item.before}` | `{item.after}` |" for item in result.changed)
+    lines.extend(
+        f"| {code_text(item.key)} | {code_text(item.before)} | {code_text(item.after)} |"
+        for item in result.changed
+    )
     for heading, entries in (("Added", result.added), ("Removed", result.removed)):
         lines.extend(["", f"## {heading}", ""])
-        lines.extend(f"- `{key}` = `{value}`" for key, value in entries)
+        lines.extend(f"- {code_text(key)} = {code_text(value)}" for key, value in entries)
     return "\n".join(lines) + "\n"
 
 
